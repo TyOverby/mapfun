@@ -16,11 +16,7 @@ enum Kind {
     Road(Range<usize>),
 }
 
-fn filter(
-    _relationship_tags: &[Tag],
-    way_tags: &[Tag],
-    range: Range<usize>,
-) -> Option<Kind> {
+fn filter(_relationship_tags: &[Tag], way_tags: &[Tag], range: Range<usize>) -> Option<Kind> {
     if way_tags.iter().any(|tag| tag.key == "highway") {
         Some(Kind::Road(range))
     } else if way_tags.iter().any(|tag| tag.key == "building") {
@@ -29,14 +25,14 @@ fn filter(
         None
     }
 }
-fn print_path<I>(path: I, is_building:bool)
+fn print_path<I>(path: I, is_building: bool)
 where
     I: Iterator<Item = (f64, f64)>,
 {
     if is_building {
-        print!(r#"<path style="fill:none; stroke:red; stroke-width:15px" d=""#);
+        print!(r#"<path style="fill:lightgrey; stroke:lightgrey; stroke-width:1px" d=""#);
     } else {
-        print!(r#"<path style="fill:none; stroke:black; stroke-width:15px" d=""#);
+        print!(r#"<path style="fill:none; stroke:darkgrey; stroke-width:12px; stroke-linecap:round" d=""#);
     }
     let mut first = true;
     for (lon, lat) in path {
@@ -69,21 +65,30 @@ fn main() {
         width, height
     );
 
-    let transform =
-|&(lon, lat)| ((lon - min_lon) * scale_x, (lat - min_lat) * scale_y) ;
+    let transform = |&(lon, lat)| ((lon - min_lon) * scale_x, (lat - min_lat) * scale_y);
 
-for kind in results {
-    match kind {
-        Kind::Road(range) => {
-          let scaled = coords[range] .iter().map(transform);
-          print_path(scaled,false)
+    for kind in &results {
+        match kind {
+            Kind::Road(range) => {
+                let range = range.clone();
+                let scaled = coords[range].iter().map(transform);
+                print_path(scaled, false)
+            }
+            _ => {}
         }
-        Kind::Building(range) => {
-          let scaled = coords[range] .iter().map(transform);
-          print_path(scaled, true)
+
+    }
+    for kind in &results {
+        match kind {
+            Kind::Building(range) => {
+                let range = range.clone();
+                let scaled = coords[range].iter().map(transform);
+                print_path(scaled, true)
+            }
+            _ => {}
         }
     }
-}
+
     /*
 
     for poly in polys {
