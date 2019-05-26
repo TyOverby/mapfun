@@ -1,30 +1,55 @@
-
+use osm_load::Bounds;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::io::Write;
 
-type Item = String;
 
 pub struct Svg<T: Hash + Eq> {
-    width: f64,
-    height: f64,
-    layers: HashMap<T, Vec<Item>>,
+    bounds: Bounds,
+    layers: HashMap<T, Vec<u8>>,
+    styles: HashMap<T, (String, String)>,
 }
 
 impl<T: Hash + Eq> Svg<T> {
-    pub fn new(width: f64, height: f64) -> Svg<T> {
+    pub fn new(bounds: Bounds) -> Svg<T> {
         Svg {
-            width,
-            height,
+            bounds,
             layers: HashMap::new(),
+            styles: HashMap::new(),
         }
+    }
+
+    pub fn set_style(&mut self, layer: T, classname: &str, style: &str) {
+        self.styles.insert(layer, (classname.into(), style.into()));
+    }
+
+    pub fn draw_polyline(&mut self, layer: T, polyline: &[(f64, f64)]) {
+        if polyline.len() == 0 {
+            return;
+        };
+        let style_class = self.styles.get(&layer);
+        let layer = self.layers.entry(layer).or_insert_with(|| vec![]);
+        match style_class {
+            Some((class, _)) => write!(layer, r#"<path class="{}" d=""#, class).unwrap(),
+            None => write!(layer, r#"<path d=""#).unwrap(),
+        }
+        let mut first = true;
+        for (lon, lat) in polyline {
+            let (lon, lat) = self
+                .bounds
+                .transform_lat_lon_to_screen_coordinate((*lon, *lat));
+            let movement = if first { "M" } else { "L" };
+            first = false;
+            write!(layer, "{}{},{} ", movement, lon, self.bounds.height - lat).unwrap();
+        }
+        write!(layer, r#"" />"#).unwrap();
     }
 
     pub fn draw_to(&mut self, layer: T, item: String) {
         self.layers
             .entry(layer)
             .or_insert_with(|| vec![])
-            .push(item)
+            .append(&mut item.into_bytes())
     }
 
     pub fn export_to_file(&self, file: &str, layer_order: &[T]) -> std::io::Result<()> {
@@ -34,14 +59,18 @@ impl<T: Hash + Eq> Svg<T> {
         writeln!(
             file,
             r#"<svg viewBox="0 0 {} {} " xmlns="http://www.w3.org/2000/svg">"#,
-            self.width, self.height
+            self.bounds.width, self.bounds.height
         )?;
+
+        writeln!(file, "<style>")?;
+        for (_, (classname, style)) in self.styles.iter() {
+            writeln!(file, ".{} {{{}}}", classname, style)?;
+        }
+        writeln!(file, "</style>")?;
 
         for layer in layer_order {
             if let Some(layer) = self.layers.get(layer) {
-                for item in layer {
-                    writeln!(file, "{}", item)?;
-                }
+                file.write_all(&layer)?;
             }
         }
 
