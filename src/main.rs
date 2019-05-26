@@ -9,15 +9,33 @@ mod svg_exporter;
 use osm_load::*;
 use svg_exporter::*;
 
+#[derive(Clone, Copy)]
 enum Kind {
     Building(RangeIdx),
     Road(RangeIdx),
+    Coastline(RangeIdx),
 }
 
 #[derive(Hash, Eq, PartialEq)]
 enum Layer {
     Building,
     Road,
+    Coastline,
+}
+
+impl Kind {
+    fn to_layer(&self) -> Layer {
+        match self {
+            Kind::Building(_) => Layer::Building,
+            Kind::Road(_) => Layer::Road,
+            Kind::Coastline(_) => Layer::Coastline,
+        }
+    }
+    fn range_idx(&self) -> RangeIdx {
+        match self {
+            Kind::Building(r) | Kind::Road(r) | Kind::Coastline(r) => *r,
+        }
+    }
 }
 
 fn filter(_relationship_tags: &[Tag], way_tags: &[Tag], range: RangeIdx) -> Option<Kind> {
@@ -25,6 +43,8 @@ fn filter(_relationship_tags: &[Tag], way_tags: &[Tag], range: RangeIdx) -> Opti
         Some(Kind::Road(range))
     } else if way_tags.iter().any(|tag| tag.key == "building") {
         Some(Kind::Building(range))
+    } else if way_tags.iter().any(|tag| tag.val == "coastline") {
+        Some(Kind::Coastline(range))
     } else {
         None
     }
@@ -47,16 +67,20 @@ fn main() -> std::io::Result<()> {
         "building",
         "fill:lightgrey; stroke:lightgrey; stroke-width:1px",
     );
+    svg.set_style(
+        Layer::Coastline,
+        "coastline",
+        "fill:none; stroke:black; stroke-width:1",
+    );
 
     for kind in &geometry.results {
-        match kind {
-            Kind::Road(range) => svg.draw_polyline(Layer::Road, geometry.resolve_coords(*range)),
-            Kind::Building(range) => {
-                svg.draw_polyline(Layer::Building, geometry.resolve_coords(*range))
-            }
-        }
+        let layer = kind.to_layer();
+        let range = kind.range_idx();
+        svg.draw_polyline(layer, geometry.resolve_coords(range));
     }
-    svg.export_to_file("./nyc.svg", &[Layer::Road, Layer::Building])?;
+
+    let layer_order = &[Layer::Road, Layer::Building, Layer::Coastline];
+    svg.export_to_file("./nyc.svg", layer_order)?;
     flame::dump_html(std::fs::File::create("./flame.html")?)?;
 
     Ok(())

@@ -45,13 +45,6 @@ impl<T: Hash + Eq> Svg<T> {
         write!(layer, r#"" />"#).unwrap();
     }
 
-    pub fn draw_to(&mut self, layer: T, item: String) {
-        self.layers
-            .entry(layer)
-            .or_insert_with(|| vec![])
-            .append(&mut item.into_bytes())
-    }
-
     pub fn export_to_file(&self, file: &str, layer_order: &[T]) -> std::io::Result<()> {
         let file = std::fs::File::create(file).unwrap();
         let mut file = std::io::BufWriter::new(file);
