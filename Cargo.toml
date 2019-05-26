@@ -5,6 +5,8 @@ authors = ["Ty Overby <ty@pre-alpha.com>"]
 
 [dependencies]
 osm-xml = "*"
+flame = "*"
+flamer = "*"
 
 [dependencies.proj5]
 version = "*"
