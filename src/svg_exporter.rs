@@ -51,7 +51,7 @@ impl<T: Hash + Eq> Svg<T> {
     }
 
     pub fn export_to_file(&self, file: &str, layer_order: &[T]) -> std::io::Result<()> {
-        let file = std::fs::File::create(file)?
+        let file = std::fs::File::create(file)?;
         let mut file = std::io::BufWriter::new(file);
 
         writeln!(
