@@ -59,7 +59,7 @@ fn main() -> std::io::Result<()> {
     svg.set_style(
         Layer::Road,
         "road",
-        "fill:none; stroke:darkgrey; stroke-width:12px; stroke-linecap:round",
+        "fill:none; stroke:darkgrey; stroke-width:0.07%; stroke-linecap:round",
     );
 
     svg.set_style(
@@ -70,7 +70,7 @@ fn main() -> std::io::Result<()> {
     svg.set_style(
         Layer::Coastline,
         "coastline",
-        "fill:none; stroke:black; stroke-width:1",
+        "fill:none; stroke:black; stroke-width:0.1%",
     );
 
     for kind in &geometry.results {
