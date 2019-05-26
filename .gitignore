@@ -3,3 +3,4 @@
 *.svg
 *.osm
 err.txt
+data/*
