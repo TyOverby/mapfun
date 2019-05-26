@@ -4,3 +4,5 @@
 *.osm
 err.txt
 data/*
+flame.html
+.DS_Store
