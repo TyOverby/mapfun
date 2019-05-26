@@ -27,6 +27,7 @@ impl<T: Hash + Eq> Svg<T> {
         if polyline.len() == 0 {
             return;
         };
+        let complete = polyline[0] == polyline[polyline.len() - 1];
         let style_class = self.styles.get(&layer);
         let layer = self.layers.entry(layer).or_insert_with(|| vec![]);
         match style_class {
@@ -42,7 +43,10 @@ impl<T: Hash + Eq> Svg<T> {
             first = false;
             write!(layer, "{}{},{} ", movement, lon, self.bounds.height - lat).unwrap();
         }
-        write!(layer, r#"" />"#).unwrap();
+        if complete {
+            write!(layer, "z").unwrap();
+        }
+        writeln!(layer, r#"" />"#).unwrap();
     }
 
     pub fn export_to_file(&self, file: &str, layer_order: &[T]) -> std::io::Result<()> {
@@ -51,7 +55,7 @@ impl<T: Hash + Eq> Svg<T> {
 
         writeln!(
             file,
-            r#"<svg viewBox="0 0 {} {} " xmlns="http://www.w3.org/2000/svg">"#,
+            r#"<svg viewBox="0 0 {} {}" xmlns="http://www.w3.org/2000/svg">"#,
             self.bounds.width, self.bounds.height
         )?;
 
