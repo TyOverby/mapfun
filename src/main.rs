@@ -41,21 +41,28 @@ impl Kind {
     }
 }
 
-fn filter(_relationship_tags: &[Tag], way_tags: &[Tag], range: RangeIdx) -> Option<Kind> {
-    for tag in way_tags {
-        eprintln!("{}:{}", tag.key, tag.val);
-    }
-    if way_tags.iter().any(|tag| tag.key == "highway") {
-        Some(Kind::Road(range))
-    } else if way_tags.iter().any(|tag| tag.key == "building") {
-        Some(Kind::Building(range))
-    } else if way_tags.iter().any(|tag| tag.val == "coastline") {
-        Some(Kind::Coastline(range))
-    } else if way_tags.iter().any(|tag| tag.val == "park") {
-        Some(Kind::Park(range))
-    } else {
+fn filter(relationship_tags: &[Tag], way_tags: &[Tag], range: RangeIdx) -> Option<Kind> {
+    type T = fn(RangeIdx) -> Kind;
+    type K<'a> = &'a Fn((&str, &str)) -> Option<T>;
+    let pmatch = |f: K| {
+        for &tags in &[relationship_tags, way_tags] {
+            for tag in tags {
+                let computed = f((&tag.key, &tag.val));
+                if computed.is_some() {
+                    return computed.map(|f| f(range));
+                }
+            }
+        }
         None
-    }
+    };
+
+    pmatch(&|tag| match tag {
+        ("highway", _) => Some(Kind::Road as T),
+        ("building", _) => Some(Kind::Building as T),
+        (_, "coastline") => Some(Kind::Coastline as T),
+        (_, "park") => Some(Kind::Park as T),
+        _ => None,
+    })
 }
 
 fn main() -> std::io::Result<()> {
