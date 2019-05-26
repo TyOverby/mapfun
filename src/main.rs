@@ -83,7 +83,7 @@ fn main() -> std::io::Result<()> {
         svg.draw_polyline(layer, geometry.resolve_coords(range))?;
     }
 
-    let layer_order = &[Layer::Road, Layer::Building, Layer::Coastline, Layer::Park];
+    let layer_order = &[Layer::Park, Layer::Road, Layer::Building, Layer::Coastline];
     svg.export_to_file("./nyc.svg", layer_order)?;
     flame::dump_html(std::fs::File::create("./flame.html")?)?;
 
