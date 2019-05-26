@@ -7,16 +7,14 @@ extern crate flamer;
 mod osm_load;
 use osm_load::*;
 
-use std::ops::Range;
-
 const TARGET_H: f64 = 1000.0f64;
 
 enum Kind {
-    Building(Range<usize>),
-    Road(Range<usize>),
+    Building(RangeIdx),
+    Road(RangeIdx),
 }
 
-fn filter(_relationship_tags: &[Tag], way_tags: &[Tag], range: Range<usize>) -> Option<Kind> {
+fn filter(_relationship_tags: &[Tag], way_tags: &[Tag], range: RangeIdx) -> Option<Kind> {
     if way_tags.iter().any(|tag| tag.key == "highway") {
         Some(Kind::Road(range))
     } else if way_tags.iter().any(|tag| tag.key == "building") {
@@ -44,12 +42,7 @@ where
 }
 
 fn main() {
-    let Geometry {
-        bounds,
-        coords,
-        polys,
-        results,
-    } = load_osm_file("./nyc.osm", &filter, 1000.0);
+    let geometry = load_osm_file("./nyc.osm", &filter, 1000.0);
     let osm_load::Bounds {
         width,
         height,
@@ -58,7 +51,7 @@ fn main() {
         scale_x,
         scale_y,
         ..
-    } = bounds;
+    } = geometry.bounds;
 
     println!(
         r#"<svg viewBox="0 0 {} {} " xmlns="http://www.w3.org/2000/svg">"#,
@@ -67,37 +60,23 @@ fn main() {
 
     let transform = |&(lon, lat)| ((lon - min_lon) * scale_x, (lat - min_lat) * scale_y);
 
-    for kind in &results {
+    for kind in &geometry.results {
         match kind {
             Kind::Road(range) => {
-                let range = range.clone();
-                let scaled = coords[range].iter().map(transform);
-                print_path(scaled, false)
+                print_path(geometry.resolve_coords(*range).iter().map(transform), false)
             }
             _ => {}
         }
 
     }
-    for kind in &results {
+    for kind in &geometry.results {
         match kind {
             Kind::Building(range) => {
-                let range = range.clone();
-                let scaled = coords[range].iter().map(transform);
-                print_path(scaled, true)
+                print_path(geometry.resolve_coords(*range).iter().map(transform), true)
             }
             _ => {}
         }
     }
-
-    /*
-
-    for poly in polys {
-        let scaled = coords[poly]
-            .iter()
-            .map(|&(lon, lat)| ((lon - min_lon) * scale_x, (lat - min_lat) * scale_y));
-        print_path(scaled);
-    }
-    */
 
     println!("</svg>");
 

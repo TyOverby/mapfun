@@ -9,7 +9,9 @@ use std::ops::Range;
 
 pub use osm_xml::Tag;
 
-pub type Callback<'a, T> = &'a Fn(&[Tag], &[Tag], Range<usize>) -> Option<T>;
+pub type Callback<'a, T> = &'a Fn(&[Tag], &[Tag], RangeIdx) -> Option<T>;
+
+pub type RangeIdx = usize;
 
 pub struct Geometry<T> {
     pub bounds: Bounds,
@@ -28,6 +30,12 @@ pub struct Bounds {
     pub scale_y: f64,
 }
 
+impl<T> Geometry<T> {
+    pub fn resolve_coords(&self, range_idx: RangeIdx) -> &[(f64, f64)] {
+        &self.coords[self.polys[range_idx].clone()]
+    }
+}
+
 #[flame]
 fn collect_ways<T>(
     relationship_tags: Option<&[Tag]>,
@@ -40,11 +48,9 @@ fn collect_ways<T>(
 ) {
     let tags = &way.tags;
     let start = all_coords.len();
-    let end = start + way.nodes.len();
-
     let relationship_tags = relationship_tags.unwrap_or(&[]);
 
-    if let Some(v) = callback(relationship_tags, tags, start..end) {
+    if let Some(v) = callback(relationship_tags, tags, all_polys.len()) {
         all_values.push(v);
         for node in &way.nodes {
             let node = doc.resolve_reference(node);
