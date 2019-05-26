@@ -16,6 +16,12 @@ enum Kind {
     Road(RangeIdx),
 }
 
+#[derive(Hash, Eq, PartialEq)]
+enum Layer {
+    Building,
+    Road,
+}
+
 fn filter(_relationship_tags: &[Tag], way_tags: &[Tag], range: RangeIdx) -> Option<Kind> {
     if way_tags.iter().any(|tag| tag.key == "highway") {
         Some(Kind::Road(range))
@@ -25,22 +31,26 @@ fn filter(_relationship_tags: &[Tag], way_tags: &[Tag], range: RangeIdx) -> Opti
         None
     }
 }
-fn print_path<I>(path: I, is_building: bool)
+fn print_path<I>(path: I, layer: Layer) -> String
 where
     I: Iterator<Item = (f64, f64)>,
 {
-    if is_building {
-        print!(r#"<path style="fill:lightgrey; stroke:lightgrey; stroke-width:1px" d=""#);
-    } else {
-        print!(r#"<path style="fill:none; stroke:darkgrey; stroke-width:12px; stroke-linecap:round" d=""#);
-    }
+    use std::io::Write;
+    let s =  match layer {
+        Layer::Building =>
+        r#"<path style="fill:lightgrey; stroke:lightgrey; stroke-width:1px" d=""#,
+        Layer::Road => r#"<path style="fill:none; stroke:darkgrey; stroke-width:12px; stroke-linecap:round" d=""#,
+    };
+    let mut s = s.to_string().into_bytes();
+
     let mut first = true;
     for (lon, lat) in path {
         let movement = if first { "M" } else { "L" };
         first = false;
-        print!("{}{},{} ", movement, lon, TARGET_H - lat);
+        write!(s, "{}{},{} ", movement, lon, TARGET_H - lat).unwrap();
     }
-    println!(r#"" />"#);
+    write!(s, r#"" />"#).unwrap();
+    String::from_utf8(s).unwrap()
 }
 
 fn main() {
@@ -55,32 +65,31 @@ fn main() {
         ..
     } = geometry.bounds;
 
-    println!(
-        r#"<svg viewBox="0 0 {} {} " xmlns="http://www.w3.org/2000/svg">"#,
-        width, height
-    );
+    let mut svg = Svg::new(width, height);
 
     let transform = |&(lon, lat)| ((lon - min_lon) * scale_x, (lat - min_lat) * scale_y);
 
     for kind in &geometry.results {
         match kind {
-            Kind::Road(range) => {
-                print_path(geometry.resolve_coords(*range).iter().map(transform), false)
-            }
-            _ => {}
+            Kind::Road(range) => svg.draw_to(
+                Layer::Road,
+                print_path(
+                    geometry.resolve_coords(*range).iter().map(transform),
+                    Layer::Road,
+                ),
+            ),
+            Kind::Building(range) => svg.draw_to(
+                Layer::Building,
+                print_path(
+                    geometry.resolve_coords(*range).iter().map(transform),
+                    Layer::Building,
+                ),
+            ),
         }
 
     }
-    for kind in &geometry.results {
-        match kind {
-            Kind::Building(range) => {
-                print_path(geometry.resolve_coords(*range).iter().map(transform), true)
-            }
-            _ => {}
-        }
-    }
 
-    println!("</svg>");
-
+    svg.export_to_file("./nyc.svg", &[Layer::Road, Layer::Building])
+        .unwrap();
     flame::dump_html(std::fs::File::create("./flame.html").unwrap()).unwrap();
 }
