@@ -5,7 +5,9 @@ extern crate proj5;
 #[macro_use]
 extern crate flamer;
 mod osm_load;
+mod svg_exporter;
 use osm_load::*;
+use svg_exporter::*;
 
 const TARGET_H: f64 = 1000.0f64;
 
