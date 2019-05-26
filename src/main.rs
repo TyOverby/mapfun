@@ -43,30 +43,17 @@ impl Kind {
 
 fn filter(relationship_tags: &[Tag], way_tags: &[Tag], range: RangeIdx) -> Option<Kind> {
     type T = fn(RangeIdx) -> Kind;
-    type K<'a> = &'a Fn((&str, &str)) -> Option<T>;
-    let pmatch = |f: K| {
-        for &tags in &[relationship_tags, way_tags] {
-            for tag in tags {
-                let computed = f((&tag.key, &tag.val));
-                if computed.is_some() {
-                    return computed.map(|f| f(range));
-                }
-            }
-        }
-        None
-    };
-
-    pmatch(&|tag| match tag {
+    osm_load::simple_filterer(|tag| match tag {
         ("highway", _) => Some(Kind::Road as T),
         ("building", _) => Some(Kind::Building as T),
         (_, "coastline") => Some(Kind::Coastline as T),
         (_, "park") => Some(Kind::Park as T),
         _ => None,
-    })
+    })(relationship_tags, way_tags, range)
 }
 
 fn main() -> std::io::Result<()> {
-    let geometry = load_osm_file("./nyc.osm", &filter, 1000.0);
+    let geometry = Geometry::from_file("./nyc.osm", &filter, 1000.0);
     let bounds = geometry.bounds;
 
     let mut svg = Svg::new(bounds);
