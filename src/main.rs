@@ -5,7 +5,9 @@ extern crate proj5;
 #[macro_use]
 extern crate flamer;
 mod osm_load;
+mod svg_exporter;
 use osm_load::*;
+use svg_exporter::*;
 
 const TARGET_H: f64 = 1000.0f64;
 
@@ -14,6 +16,13 @@ enum Kind {
     Building(RangeIdx),
     Road(RangeIdx),
     Coastline(RangeIdx),
+}
+
+#[derive(Hash, Eq, PartialEq)]
+enum Layer {
+    Building,
+    Road,
+    Coastline,
 }
 
 fn filter(_relationship_tags: &[Tag], way_tags: &[Tag], range: RangeIdx) -> Option<Kind> {
@@ -27,23 +36,27 @@ fn filter(_relationship_tags: &[Tag], way_tags: &[Tag], range: RangeIdx) -> Opti
         None
     }
 }
-fn print_path<I>(path: I, kind: &Kind)
+fn print_path<I>(path: I, layer: Layer) -> String
 where
     I: Iterator<Item = (f64, f64)>,
 {
-    match *kind {
-        Kind::Coastline(_) => print!(r#"<path style="fill:none; stroke:black; stroke-width:1" d=""#),
-        // Kind::Road(_) => print!(r#"<path style="fill:none; stroke:darkgrey; stroke-width:0.2%; stroke-linecap:round" d=""#),
-        // Kind::Building(_) => print!(r#"<path style="fill:lightgrey; stroke:lightgrey" d=""#),
-        _ => (),
-    }
+    use std::io::Write;
+
+    let s = match layer {
+        Layer::Coastline => r#"<path style="fill:none; stroke:black; stroke-width:1" d=""#,
+        Layer::Building => r#"<path style="fill:lightgrey; stroke:lightgrey; stroke-width:1px" d=""#,
+        Layer::Road => r#"<path style="fill:none; stroke:darkgrey; stroke-width:0.2%; stroke-linecap:round" d=""#,
+    };
+    let mut s = s.to_string().into_bytes();
+
     let mut first = true;
     for (lon, lat) in path {
         let movement = if first { "M" } else { "L" };
         first = false;
-        print!("{}{},{} ", movement, lon, TARGET_H - lat);
+        write!(s, "{}{},{} ", movement, lon, TARGET_H - lat).unwrap();
     }
-    println!(r#"" />"#);
+    write!(s, r#"" />"#).unwrap();
+    String::from_utf8(s).unwrap()
 }
 
 fn main() {
@@ -58,40 +71,30 @@ fn main() {
         ..
     } = geometry.bounds;
 
-    println!(
-        r#"<svg viewBox="0 0 {} {} " xmlns="http://www.w3.org/2000/svg">"#,
-        width, height
-    );
+    let mut svg = Svg::new(width, height);
 
     let transform = |&(lon, lat)| ((lon - min_lon) * scale_x, (lat - min_lat) * scale_y);
 
     for kind in &geometry.results {
         match kind {
-            Kind::Coastline(range) => {
-                print_path(geometry.resolve_coords(*range).iter().map(transform), kind)
-            }
-            _ => {}
-        }
-    }
-
-    for kind in &geometry.results {
-        match kind {
-            Kind::Road(range) => {
-                print_path(geometry.resolve_coords(*range).iter().map(transform), kind)
-            }
-            _ => {}
-        }
-    }
-    for kind in &geometry.results {
-        match kind {
-            Kind::Building(range) => {
-                print_path(geometry.resolve_coords(*range).iter().map(transform), kind)
-            }
-            _ => {}
+            Kind::Coastline(range) => svg.draw_to(
+                Layer::Coastline,
+                print_path(geometry.resolve_coords(*range).iter().map(transform), Layer::Coastline)
+            ),
+            Kind::Road(range) => svg.draw_to(
+                Layer::Road,
+                print_path(geometry.resolve_coords(*range).iter().map(transform), Layer::Road)
+            ),
+            Kind::Building(range) => svg.draw_to(
+                Layer::Building,
+                print_path(geometry.resolve_coords(*range).iter().map(transform), Layer::Building)
+            ),
         }
     }
 
     println!("</svg>");
 
+    svg.export_to_file("./nyc.svg", &[Layer::Road, Layer::Building])
+        .unwrap();
     flame::dump_html(std::fs::File::create("./flame.html").unwrap()).unwrap();
 }
