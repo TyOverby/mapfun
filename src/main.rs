@@ -36,7 +36,7 @@ fn filter(_relationship_tags: &[Tag], way_tags: &[Tag], range: RangeIdx) -> Opti
         None
     }
 }
-fn print_path<I>(path: I, layer: Layer) -> String
+fn print_path<I>(path: I, bounds: &Bounds, layer: Layer) -> String
 where
     I: Iterator<Item = (f64, f64)>,
 {
@@ -53,7 +53,7 @@ where
     for (lon, lat) in path {
         let movement = if first { "M" } else { "L" };
         first = false;
-        write!(s, "{}{},{} ", movement, lon, TARGET_H - lat).unwrap();
+        write!(s, "{}{},{} ", movement, lon, bounds.height - lat).unwrap();
     }
     write!(s, r#"" />"#).unwrap();
     String::from_utf8(s).unwrap()
@@ -61,19 +61,9 @@ where
 
 fn main() {
     let geometry = load_osm_file("./nyc.osm", &filter, 1000.0);
-    let osm_load::Bounds {
-        width,
-        height,
-        min_lon,
-        min_lat,
-        scale_x,
-        scale_y,
-        ..
-    } = geometry.bounds;
+    let bounds = geometry.bounds;
 
-    let mut svg = Svg::new(width, height);
-
-    let transform = |&(lon, lat)| ((lon - min_lon) * scale_x, (lat - min_lat) * scale_y);
+    let mut svg = Svg::new(bounds.width, bounds.height);
 
     for kind in &geometry.results {
         match kind {
@@ -87,7 +77,11 @@ fn main() {
             ),
             Kind::Building(range) => svg.draw_to(
                 Layer::Building,
-                print_path(geometry.resolve_coords(*range).iter().map(transform), Layer::Building)
+                print_path(
+                    geometry.resolve_coords(*range).iter().cloned(),
+                    &bounds,
+                    Layer::Building,
+                ),
             ),
         }
     }
