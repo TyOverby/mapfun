@@ -1,0 +1,11 @@
+[package]
+name = "mapfun"
+version = "0.1.0"
+authors = ["Ty Overby <ty@pre-alpha.com>"]
+
+[dependencies]
+osm-xml = "*"
+
+[dependencies.proj5]
+version = "*"
+features = ["multithreading"]
