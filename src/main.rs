@@ -14,6 +14,7 @@ enum Kind {
     Building(RangeIdx),
     Road(RangeIdx),
     Coastline(RangeIdx),
+    Park(RangeIdx),
 }
 
 #[derive(Hash, Eq, PartialEq)]
@@ -21,6 +22,7 @@ enum Layer {
     Building,
     Road,
     Coastline,
+    Park,
 }
 
 impl Kind {
@@ -29,22 +31,28 @@ impl Kind {
             Kind::Building(_) => Layer::Building,
             Kind::Road(_) => Layer::Road,
             Kind::Coastline(_) => Layer::Coastline,
+            Kind::Park(_) => Layer::Park,
         }
     }
     fn range_idx(&self) -> RangeIdx {
         match self {
-            Kind::Building(r) | Kind::Road(r) | Kind::Coastline(r) => *r,
+            Kind::Building(r) | Kind::Road(r) | Kind::Coastline(r) | Kind::Park(r) => *r,
         }
     }
 }
 
 fn filter(_relationship_tags: &[Tag], way_tags: &[Tag], range: RangeIdx) -> Option<Kind> {
+    for tag in way_tags {
+        eprintln!("{}:{}", tag.key, tag.val);
+    }
     if way_tags.iter().any(|tag| tag.key == "highway") {
         Some(Kind::Road(range))
     } else if way_tags.iter().any(|tag| tag.key == "building") {
         Some(Kind::Building(range))
     } else if way_tags.iter().any(|tag| tag.val == "coastline") {
         Some(Kind::Coastline(range))
+    } else if way_tags.iter().any(|tag| tag.val == "park") {
+        Some(Kind::Park(range))
     } else {
         None
     }
@@ -73,6 +81,7 @@ fn main() -> std::io::Result<()> {
         "coastline",
         "fill:none; stroke:black; stroke-width:0.1%",
     );
+    svg.set_style(Layer::Park, "park", "fill: #adbfad; stroke:none;");
 
     for kind in &geometry.results {
         let layer = kind.to_layer();
@@ -80,7 +89,7 @@ fn main() -> std::io::Result<()> {
         svg.draw_polyline(layer, geometry.resolve_coords(range))?;
     }
 
-    let layer_order = &[Layer::Road, Layer::Building, Layer::Coastline];
+    let layer_order = &[Layer::Road, Layer::Building, Layer::Coastline, Layer::Park];
     svg.export_to_file("./nyc.svg", layer_order)?;
     flame::dump_html(std::fs::File::create("./flame.html")?)?;
 
