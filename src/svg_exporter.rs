@@ -23,15 +23,16 @@ impl<T: Hash + Eq> Svg<T> {
         self.styles.insert(layer, (classname.into(), style.into()));
     }
 
-    pub fn draw_polyline(&mut self, layer: T, polyline: &[(f64, f64)]) {
+    pub fn draw_polyline(&mut self, layer: T, polyline: &[(f64, f64)]) -> std::io::Result<()> {
         if polyline.len() == 0 {
-            return;
+            return Ok(());
         };
+        let complete = polyline[0] == polyline[polyline.len() - 1];
         let style_class = self.styles.get(&layer);
         let layer = self.layers.entry(layer).or_insert_with(|| vec![]);
         match style_class {
-            Some((class, _)) => write!(layer, r#"<path class="{}" d=""#, class).unwrap(),
-            None => write!(layer, r#"<path d=""#).unwrap(),
+            Some((class, _)) => write!(layer, r#"<path class="{}" d=""#, class)?,
+            None => write!(layer, r#"<path d=""#)?,
         }
         let mut first = true;
         for (lon, lat) in polyline {
@@ -40,18 +41,22 @@ impl<T: Hash + Eq> Svg<T> {
                 .transform_lat_lon_to_screen_coordinate((*lon, *lat));
             let movement = if first { "M" } else { "L" };
             first = false;
-            write!(layer, "{}{},{} ", movement, lon, self.bounds.height - lat).unwrap();
+            write!(layer, "{}{},{} ", movement, lon, self.bounds.height - lat)?;
         }
-        write!(layer, r#"" />"#).unwrap();
+        if complete {
+            write!(layer, "z")?;
+        }
+        writeln!(layer, r#"" />"#)?;
+        Ok(())
     }
 
     pub fn export_to_file(&self, file: &str, layer_order: &[T]) -> std::io::Result<()> {
-        let file = std::fs::File::create(file).unwrap();
+        let file = std::fs::File::create(file)?
         let mut file = std::io::BufWriter::new(file);
 
         writeln!(
             file,
-            r#"<svg viewBox="0 0 {} {} " xmlns="http://www.w3.org/2000/svg">"#,
+            r#"<svg viewBox="0 0 {} {}" xmlns="http://www.w3.org/2000/svg">"#,
             self.bounds.width, self.bounds.height
         )?;
 

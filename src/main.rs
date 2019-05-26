@@ -67,6 +67,7 @@ fn main() -> std::io::Result<()> {
         "building",
         "fill:lightgrey; stroke:lightgrey; stroke-width:1px",
     );
+
     svg.set_style(
         Layer::Coastline,
         "coastline",
