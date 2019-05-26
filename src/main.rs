@@ -9,9 +9,11 @@ use osm_load::*;
 
 const TARGET_H: f64 = 1000.0f64;
 
+#[derive(Clone, Copy)]
 enum Kind {
     Building(RangeIdx),
     Road(RangeIdx),
+    Coastline(RangeIdx),
 }
 
 fn filter(_relationship_tags: &[Tag], way_tags: &[Tag], range: RangeIdx) -> Option<Kind> {
@@ -19,18 +21,21 @@ fn filter(_relationship_tags: &[Tag], way_tags: &[Tag], range: RangeIdx) -> Opti
         Some(Kind::Road(range))
     } else if way_tags.iter().any(|tag| tag.key == "building") {
         Some(Kind::Building(range))
+    } else if way_tags.iter().any(|tag| tag.val == "coastline") {
+        Some(Kind::Coastline(range))
     } else {
         None
     }
 }
-fn print_path<I>(path: I, is_building: bool)
+fn print_path<I>(path: I, kind: &Kind)
 where
     I: Iterator<Item = (f64, f64)>,
 {
-    if is_building {
-        print!(r#"<path style="fill:lightgrey; stroke:lightgrey; stroke-width:1px" d=""#);
-    } else {
-        print!(r#"<path style="fill:none; stroke:darkgrey; stroke-width:12px; stroke-linecap:round" d=""#);
+    match *kind {
+        Kind::Coastline(_) => print!(r#"<path style="fill:none; stroke:black; stroke-width:1" d=""#),
+        // Kind::Road(_) => print!(r#"<path style="fill:none; stroke:darkgrey; stroke-width:0.2%; stroke-linecap:round" d=""#),
+        // Kind::Building(_) => print!(r#"<path style="fill:lightgrey; stroke:lightgrey" d=""#),
+        _ => (),
     }
     let mut first = true;
     for (lon, lat) in path {
@@ -62,17 +67,25 @@ fn main() {
 
     for kind in &geometry.results {
         match kind {
-            Kind::Road(range) => {
-                print_path(geometry.resolve_coords(*range).iter().map(transform), false)
+            Kind::Coastline(range) => {
+                print_path(geometry.resolve_coords(*range).iter().map(transform), kind)
             }
             _ => {}
         }
+    }
 
+    for kind in &geometry.results {
+        match kind {
+            Kind::Road(range) => {
+                print_path(geometry.resolve_coords(*range).iter().map(transform), kind)
+            }
+            _ => {}
+        }
     }
     for kind in &geometry.results {
         match kind {
             Kind::Building(range) => {
-                print_path(geometry.resolve_coords(*range).iter().map(transform), true)
+                print_path(geometry.resolve_coords(*range).iter().map(transform), kind)
             }
             _ => {}
         }
