@@ -77,7 +77,7 @@ fn main() -> std::io::Result<()> {
     for kind in &geometry.results {
         let layer = kind.to_layer();
         let range = kind.range_idx();
-        svg.draw_polyline(layer, geometry.resolve_coords(range));
+        svg.draw_polyline(layer, geometry.resolve_coords(range))?;
     }
 
     let layer_order = &[Layer::Road, Layer::Building, Layer::Coastline];
