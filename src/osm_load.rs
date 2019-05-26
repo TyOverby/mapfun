@@ -19,6 +19,8 @@ pub struct Geometry<T> {
     pub coords: Vec<(f64, f64)>,
     pub polys: Vec<Range<usize>>,
 }
+
+#[derive(Copy, Clone)]
 pub struct Bounds {
     pub width: f64,
     pub height: f64,
@@ -33,6 +35,15 @@ pub struct Bounds {
 impl<T> Geometry<T> {
     pub fn resolve_coords(&self, range_idx: RangeIdx) -> &[(f64, f64)] {
         &self.coords[self.polys[range_idx].clone()]
+    }
+}
+
+impl Bounds {
+    pub fn transform_lat_lon_to_screen_coordinate(&self, (lon, lat): (f64, f64)) -> (f64, f64) {
+        (
+            (lon - self.min_lon) * self.scale_x,
+            (lat - self.min_lat) * self.scale_y,
+        )
     }
 }
 

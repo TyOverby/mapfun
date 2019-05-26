@@ -9,8 +9,6 @@ mod svg_exporter;
 use osm_load::*;
 use svg_exporter::*;
 
-const TARGET_H: f64 = 1000.0f64;
-
 enum Kind {
     Building(RangeIdx),
     Road(RangeIdx),
@@ -31,14 +29,16 @@ fn filter(_relationship_tags: &[Tag], way_tags: &[Tag], range: RangeIdx) -> Opti
         None
     }
 }
-fn print_path<I>(path: I, layer: Layer) -> String
+fn print_path<I>(path: I, bounds: &Bounds, layer: Layer) -> String
 where
     I: Iterator<Item = (f64, f64)>,
 {
     use std::io::Write;
+
+    let path = path.map(|a| bounds.transform_lat_lon_to_screen_coordinate(a));
+
     let s =  match layer {
-        Layer::Building =>
-        r#"<path style="fill:lightgrey; stroke:lightgrey; stroke-width:1px" d=""#,
+        Layer::Building => r#"<path style="fill:lightgrey; stroke:lightgrey; stroke-width:1px" d=""#,
         Layer::Road => r#"<path style="fill:none; stroke:darkgrey; stroke-width:12px; stroke-linecap:round" d=""#,
     };
     let mut s = s.to_string().into_bytes();
@@ -47,7 +47,7 @@ where
     for (lon, lat) in path {
         let movement = if first { "M" } else { "L" };
         first = false;
-        write!(s, "{}{},{} ", movement, lon, TARGET_H - lat).unwrap();
+        write!(s, "{}{},{} ", movement, lon, bounds.height - lat).unwrap();
     }
     write!(s, r#"" />"#).unwrap();
     String::from_utf8(s).unwrap()
@@ -55,33 +55,25 @@ where
 
 fn main() {
     let geometry = load_osm_file("./nyc.osm", &filter, 1000.0);
-    let osm_load::Bounds {
-        width,
-        height,
-        min_lon,
-        min_lat,
-        scale_x,
-        scale_y,
-        ..
-    } = geometry.bounds;
+    let bounds = geometry.bounds;
 
-    let mut svg = Svg::new(width, height);
-
-    let transform = |&(lon, lat)| ((lon - min_lon) * scale_x, (lat - min_lat) * scale_y);
+    let mut svg = Svg::new(bounds.width, bounds.height);
 
     for kind in &geometry.results {
         match kind {
             Kind::Road(range) => svg.draw_to(
                 Layer::Road,
                 print_path(
-                    geometry.resolve_coords(*range).iter().map(transform),
+                    geometry.resolve_coords(*range).iter().cloned(),
+                    &bounds,
                     Layer::Road,
                 ),
             ),
             Kind::Building(range) => svg.draw_to(
                 Layer::Building,
                 print_path(
-                    geometry.resolve_coords(*range).iter().map(transform),
+                    geometry.resolve_coords(*range).iter().cloned(),
+                    &bounds,
                     Layer::Building,
                 ),
             ),
