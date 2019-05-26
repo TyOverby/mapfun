@@ -8,6 +8,7 @@ pub struct Svg<T: Hash + Eq> {
     bounds: Bounds,
     layers: HashMap<T, Vec<u8>>,
     styles: HashMap<T, (String, String)>,
+    background_color: Option<String>,
 }
 
 impl<T: Hash + Eq> Svg<T> {
@@ -16,9 +17,13 @@ impl<T: Hash + Eq> Svg<T> {
             bounds,
             layers: HashMap::new(),
             styles: HashMap::new(),
+            background_color: None,
         }
     }
 
+    pub fn set_background_color(&mut self, color: &str) {
+        self.background_color = Some(color.into());
+    }
     pub fn set_style(&mut self, layer: T, classname: &str, style: &str) {
         self.styles.insert(layer, (classname.into(), style.into()));
     }
@@ -61,6 +66,10 @@ impl<T: Hash + Eq> Svg<T> {
         )?;
 
         writeln!(file, "<style>")?;
+        if let Some(background_color) = &self.background_color {
+            writeln!(file, "svg {{background-color: {}}}", background_color)?;
+        }
+
         for (_, (classname, style)) in self.styles.iter() {
             writeln!(file, ".{} {{{}}}", classname, style)?;
         }

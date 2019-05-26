@@ -58,6 +58,7 @@ fn main() -> std::io::Result<()> {
 
     let mut svg = Svg::new(bounds);
 
+svg.set_background_color("#000020");
     svg.set_style(
         Layer::Road,
         "road",

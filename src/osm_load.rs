@@ -10,7 +10,6 @@ use std::ops::Range;
 pub use osm_xml::Tag;
 
 pub type Callback<'a, T> = &'a Fn(&[Tag], &[Tag], RangeIdx) -> Option<T>;
-
 pub type RangeIdx = usize;
 
 pub struct Geometry<T> {
@@ -112,11 +111,6 @@ impl<T> Geometry<T> {
             results: all_values,
         }
     }
-
-    /*
-        type T = fn(RangeIdx) -> Kind;
-        type K<'a> = &'a Fn((&str, &str)) -> Option<T>;
-    */
 }
 
 impl Bounds {
