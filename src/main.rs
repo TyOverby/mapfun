@@ -9,8 +9,6 @@ mod svg_exporter;
 use osm_load::*;
 use svg_exporter::*;
 
-const TARGET_H: f64 = 1000.0f64;
-
 #[derive(Clone, Copy)]
 enum Kind {
     Building(RangeIdx),
@@ -36,11 +34,14 @@ fn filter(_relationship_tags: &[Tag], way_tags: &[Tag], range: RangeIdx) -> Opti
         None
     }
 }
+
 fn print_path<I>(path: I, bounds: &Bounds, layer: Layer) -> String
 where
     I: Iterator<Item = (f64, f64)>,
 {
     use std::io::Write;
+
+    let path = path.map(|a| bounds.transform_lat_lon_to_screen_coordinate(a));
 
     let s = match layer {
         Layer::Coastline => r#"<path style="fill:none; stroke:black; stroke-width:1" d=""#,
@@ -69,11 +70,19 @@ fn main() {
         match kind {
             Kind::Coastline(range) => svg.draw_to(
                 Layer::Coastline,
-                print_path(geometry.resolve_coords(*range).iter().map(transform), Layer::Coastline)
+                print_path(
+                    geometry.resolve_coords(*range).iter().cloned(),
+                    &bounds,
+                    Layer::Coastline,
+                ),
             ),
             Kind::Road(range) => svg.draw_to(
                 Layer::Road,
-                print_path(geometry.resolve_coords(*range).iter().map(transform), Layer::Road)
+                print_path(
+                    geometry.resolve_coords(*range).iter().cloned(),
+                    &bounds,
+                    Layer::Road,
+                ),
             ),
             Kind::Building(range) => svg.draw_to(
                 Layer::Building,
