@@ -67,6 +67,7 @@ impl<T: Hash + Eq> Svg<T> {
         Ok(())
     }
 
+    #[flame]
     fn export_layer<W: Write>(
         &self,
         layer: &T,
@@ -95,6 +96,7 @@ impl<T: Hash + Eq> Svg<T> {
         Ok(())
     }
 
+    #[flame]
     pub fn export_to_file(&self, file: &str, layer_order: &[T]) -> std::io::Result<()> {
         let file = std::fs::File::create(file)?;
         let mut file = std::io::BufWriter::new(file);

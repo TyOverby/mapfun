@@ -10,6 +10,7 @@ impl Ord for Point {
     }
 }
 
+#[flame]
 fn inline_map<A: Sized, B: Sized, F: Fn(A) -> B>(mut input: Vec<A>, f: F) -> Vec<B> {
     use std::mem::*;
     assert!(size_of::<A>() == size_of::<B>());
@@ -28,7 +29,8 @@ fn inline_map<A: Sized, B: Sized, F: Fn(A) -> B>(mut input: Vec<A>, f: F) -> Vec
     result
 }
 
-fn dedup(line_segments: Vec<Vec<(f64, f64)>>) -> Vec<Vec<(f64, f64)>> {
+#[flame]
+pub fn dedup(line_segments: Vec<Vec<(f64, f64)>>) -> Vec<Vec<(f64, f64)>> {
     let mut into = inline_map(line_segments, |ls| inline_map(ls, |(a, b)| Point(a, b)));
     dedup_inner(&mut into);
     let outof = inline_map(into, |ls| inline_map(ls, |Point(a, b)| (a, b)));
@@ -69,6 +71,51 @@ fn dedup_inner(line_segments: &mut Vec<Vec<Point>>) {
     for &idx in should_remove.iter().rev() {
         line_segments.swap_remove(idx);
     }
+}
+
+pub fn equalize(segment: &mut Vec<(f64, f64)>) {
+    let (sx, sy) = segment[0];
+    let (_, ey) = segment[segment.len() - 1];
+    segment.push((sx, ey));
+    segment.push((sx, sy));
+}
+
+#[flame]
+pub fn connect(mut segments: Vec<Vec<(f64, f64)>>) -> Vec<Vec<(f64, f64)>> {
+    loop {
+        let mut swap_indexes = None;
+        'outer: for (i, line_i) in segments.iter().enumerate() {
+            for (j, line_j) in segments.iter().enumerate() {
+                if i == j {
+                    continue;
+                }
+                let start_i = line_i[0];
+                let end_j = line_j[line_j.len() - 1];
+                if start_i == end_j {
+                    swap_indexes = Some((i, j));
+                    break 'outer;
+                }
+            }
+        }
+        match swap_indexes {
+            Some((i, j)) => {
+                let (mut i_contents, mut j_contents) = if i > j {
+                    let i_contents = segments.swap_remove(i);
+                    let j_contents = segments.swap_remove(j);
+                    (i_contents, j_contents)
+                } else {
+                    let j_contents = segments.swap_remove(j);
+                    let i_contents = segments.swap_remove(i);
+                    (i_contents, j_contents)
+                };
+                j_contents.append(&mut i_contents);
+                segments.push(j_contents);
+                continue;
+            }
+            None => break,
+        }
+    }
+    segments
 }
 
 #[test]

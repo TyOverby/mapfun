@@ -12,9 +12,8 @@ pub use osm_xml::Tag;
 pub type Callback<'a, T> = &'a Fn(&[Tag], &[Tag], RangeIdx) -> Option<T>;
 pub type RangeIdx = usize;
 
-pub struct Geometry<T> {
+pub struct Geometry {
     pub bounds: Bounds,
-    pub results: Vec<T>,
     pub coords: Vec<(f64, f64)>,
     pub polys: Vec<Range<usize>>,
 }
@@ -31,13 +30,13 @@ pub struct Bounds {
     pub scale_y: f64,
 }
 
-impl<T> Geometry<T> {
+impl Geometry {
     pub fn resolve_coords(&self, range_idx: RangeIdx) -> &[(f64, f64)] {
         &self.coords[self.polys[range_idx].clone()]
     }
 
     #[flame]
-    pub fn from_file(path: &str, callback: Callback<T>, target_h: f64) -> Geometry<T> {
+    pub fn from_file<T>(path: &str, callback: Callback<T>, target_h: f64) -> (Geometry, Vec<T>) {
         let f = File::open(path).unwrap();
         let br = BufReader::new(f);
         let doc = flame::span_of("reading osm data", || OSM::parse(br).unwrap());
@@ -95,21 +94,23 @@ impl<T> Geometry<T> {
 
         let all_coords = coord_convert(all_coords);
 
-        Geometry {
-            bounds: Bounds {
-                min_lon: b_min_lon,
-                min_lat: b_min_lat,
-                width: target_w,
-                height: target_h,
-                max_lon: b_max_lon,
-                max_lat: b_max_lat,
-                scale_x,
-                scale_y,
+        (
+            Geometry {
+                bounds: Bounds {
+                    min_lon: b_min_lon,
+                    min_lat: b_min_lat,
+                    width: target_w,
+                    height: target_h,
+                    max_lon: b_max_lon,
+                    max_lat: b_max_lat,
+                    scale_x,
+                    scale_y,
+                },
+                coords: all_coords,
+                polys: all_polys,
             },
-            coords: all_coords,
-            polys: all_polys,
-            results: all_values,
-        }
+            all_values,
+        )
     }
 }
 
@@ -121,22 +122,23 @@ impl Bounds {
         )
     }
 }
-    pub fn simple_filterer<T, F>(f: F) -> impl Fn(&[Tag], &[Tag], RangeIdx) -> Option<T>
-    where F: Fn((&str, &str)) -> Option<fn(RangeIdx) -> T> {
-        move |relationship_tags, way_tags, range| {
-            for &tags in &[relationship_tags, way_tags] {
-                for tag in tags {
-                    let computed = f((&tag.key, &tag.val));
-                    if computed.is_some() {
-                        return computed.map(|f| f(range));
-                    }
+pub fn simple_filterer<T, F>(f: F) -> impl Fn(&[Tag], &[Tag], RangeIdx) -> Option<T>
+where
+    F: Fn((&str, &str)) -> Option<fn(RangeIdx) -> T>,
+{
+    move |relationship_tags, way_tags, range| {
+        for &tags in &[relationship_tags, way_tags] {
+            for tag in tags {
+                let computed = f((&tag.key, &tag.val));
+                if computed.is_some() {
+                    return computed.map(|f| f(range));
                 }
             }
-            None
-        }
-    }
 
-#[flame]
+        }
+        None
+}
+}
 fn collect_ways<T>(
     relationship_tags: Option<&[Tag]>,
     way: &Way,
