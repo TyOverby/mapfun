@@ -65,7 +65,7 @@ fn filter(relationship_tags: &[Tag], way_tags: &[Tag], range: RangeIdx) -> Optio
 }
 
 #[flame]
-fn process_coastline(results: Vec<Kind>, geometry: &Geometry) -> Vec<Kind> {
+fn process_coastline_and_parks(results: Vec<Kind>, geometry: &Geometry) -> Vec<Kind> {
 
     let mut coastlines: Vec<Vec<_>> = vec![];
     let mut disconnected_parks: Vec<Vec<_>> = vec![];
@@ -117,7 +117,7 @@ fn process_coastline(results: Vec<Kind>, geometry: &Geometry) -> Vec<Kind> {
 fn main() -> std::io::Result<()> {
     let (geometry, results) = Geometry::from_file("./nyc.osm", &filter, 1000.0);
     let bounds = geometry.bounds;
-    let results = process_coastline(results, &geometry);
+    let results = process_coastline_and_parks(results, &geometry);
 
     let mut svg = Svg::new(bounds);
 
