@@ -19,6 +19,7 @@ enum Kind {
     Coastline(RangeIdx),
     Park(RangeIdx),
     ProcessedCoastline(Vec<(f64, f64)>),
+    ProcessedPark(Vec<(f64, f64)>),
 }
 
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
@@ -38,6 +39,7 @@ impl Kind {
             Kind::Coastline(_) => Layer::Coastline,
             Kind::ProcessedCoastline(_) => Layer::Coastline,
             Kind::Park(_) => Layer::Park,
+            Kind::ProcessedPark(_) => Layer::Park,
         }
     }
     fn resolve_coords<'a>(&'a self, geom: &'a Geometry) -> &'a [(f64, f64)] {
@@ -46,6 +48,7 @@ impl Kind {
                 geom.resolve_coords(*r)
             }
             Kind::ProcessedCoastline(v) => &v[..],
+            Kind::ProcessedPark(v) => &v[..],
         }
     }
 }
@@ -65,31 +68,49 @@ fn filter(relationship_tags: &[Tag], way_tags: &[Tag], range: RangeIdx) -> Optio
 fn process_coastline(results: Vec<Kind>, geometry: &Geometry) -> Vec<Kind> {
 
     let mut coastlines: Vec<Vec<_>> = vec![];
-    let mut others = vec![];
+    let mut disconnected_parks: Vec<Vec<_>> = vec![];
+    let mut acc = vec![];
     for kind in results {
         match kind {
             Kind::Coastline(idx) => {
                 coastlines.push(geometry.resolve_coords(idx).into_iter().cloned().collect())
             }
-            other => others.push(other),
+            Kind::Park(idx) => {
+                let geometry = geometry.resolve_coords(idx);
+                if geometry[0] == geometry[geometry.len() - 1] {
+                    acc.push(Kind::Park(idx));
+                } else {
+                    let geometry = geometry.into_iter().cloned().collect();
+                    disconnected_parks.push(geometry);
+                }
+            }
+            other => acc.push(other),
         }
     }
-    println!("coastlines before deduping: {}", coastlines.len());
-    let coastlines = linemath::dedup(coastlines);
-    println!("coastlines after deduping: {}", coastlines.len());
-    let mut coastlines = linemath::connect(coastlines);
-    println!("coastlines after connecting: {}", coastlines.len());
 
+    // Coastlines
+    let coastlines = linemath::dedup(coastlines);
+    let mut coastlines = linemath::connect(coastlines);
     for coastline in coastlines.iter_mut() {
         linemath::equalize(coastline);
     }
 
-
     for coastline in coastlines {
-        others.push(Kind::ProcessedCoastline(coastline));
+        acc.push(Kind::ProcessedCoastline(coastline));
     }
 
-    others
+    // Parks
+    let disconnected_parks = linemath::dedup(disconnected_parks);
+    let mut disconnected_parks = linemath::connect(disconnected_parks);
+    for park in disconnected_parks.iter_mut() {
+        linemath::equalize(park);
+    }
+
+    for park in disconnected_parks {
+        acc.push(Kind::ProcessedPark(park));
+    }
+
+    acc
 }
 
 #[flame]
@@ -137,12 +158,11 @@ fn main() -> std::io::Result<()> {
     }
 
     let layer_order = &[
-        /*
+        Layer::Coastline,
         Layer::Park,
         Layer::Road,
         Layer::Building,
-        Layer::ParkBuilding,*/
-        Layer::Coastline,
+        Layer::ParkBuilding,
     ];
     svg.export_to_file("./nyc.svg", layer_order)?;
     flame::dump_html(std::fs::File::create("./flame.html")?)?;
