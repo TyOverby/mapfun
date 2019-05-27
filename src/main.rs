@@ -6,6 +6,8 @@ extern crate proj5;
 extern crate flamer;
 mod osm_load;
 mod svg_exporter;
+mod linemath;
+
 use osm_load::*;
 use svg_exporter::*;
 
