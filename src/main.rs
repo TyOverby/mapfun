@@ -28,6 +28,7 @@ enum Layer {
     Road,
     Coastline,
     Park,
+    ParkPath,
     ParkBuilding,
 }
 
@@ -123,6 +124,8 @@ fn main() -> std::io::Result<()> {
 
     svg.set_background_color("#000020");
     svg.set_clippings_layer(Layer::ParkBuilding, Layer::Park);
+    svg.set_clippings_layer(Layer::ParkPath, Layer::Park);
+
     svg.set_style(
         Layer::Road,
         "road",
@@ -138,7 +141,13 @@ fn main() -> std::io::Result<()> {
     svg.set_style(
         Layer::ParkBuilding,
         "park-building",
-        "fill:#617d61; stroke:#617d61; stroke-width:1px",
+        "fill:#cbeacf; stroke:#cbeacf; stroke-width:1px",
+    );
+
+    svg.set_style(
+        Layer::ParkPath,
+        "park-path",
+        "fill:none; stroke:#C5DBC5; stroke-width:1px",
     );
 
     svg.set_style(
@@ -152,8 +161,11 @@ fn main() -> std::io::Result<()> {
         let layer = kind.to_layer();
         let coords = kind.resolve_coords(&geometry);
         svg.draw_polyline(layer, coords)?;
-        if let Layer::Building = layer {
-            svg.draw_polyline(Layer::ParkBuilding, coords)?;
+
+        match layer {
+            Layer::Building => svg.draw_polyline(Layer::ParkBuilding, coords)?,
+            Layer::Road => svg.draw_polyline(Layer::ParkPath, coords)?,
+            _ => (),
         }
     }
 
@@ -163,6 +175,7 @@ fn main() -> std::io::Result<()> {
         Layer::Road,
         Layer::Building,
         Layer::ParkBuilding,
+        Layer::ParkPath,
     ];
     svg.export_to_file("./nyc.svg", layer_order)?;
     flame::dump_html(std::fs::File::create("./flame.html")?)?;
