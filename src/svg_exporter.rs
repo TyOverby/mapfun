@@ -3,11 +3,11 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use std::io::Write;
 
-
 pub struct Svg<T: Hash + Eq> {
     bounds: Bounds,
     layers: HashMap<T, Vec<u8>>,
     styles: HashMap<T, (String, String)>,
+    clippings: HashMap<T, T>,
     background_color: Option<String>,
 }
 
@@ -17,6 +17,7 @@ impl<T: Hash + Eq> Svg<T> {
             bounds,
             layers: HashMap::new(),
             styles: HashMap::new(),
+            clippings: HashMap::new(),
             background_color: None,
         }
     }
@@ -24,8 +25,13 @@ impl<T: Hash + Eq> Svg<T> {
     pub fn set_background_color(&mut self, color: &str) {
         self.background_color = Some(color.into());
     }
+
     pub fn set_style(&mut self, layer: T, classname: &str, style: &str) {
         self.styles.insert(layer, (classname.into(), style.into()));
+    }
+
+    pub fn set_clippings_layer(&mut self, layer: T, clipped_by: T) {
+        self.clippings.insert(layer, clipped_by);
     }
 
     pub fn draw_polyline(&mut self, layer: T, polyline: &[(f64, f64)]) -> std::io::Result<()> {
@@ -55,6 +61,34 @@ impl<T: Hash + Eq> Svg<T> {
         Ok(())
     }
 
+    fn export_layer<W: Write>(
+        &self,
+        layer: &T,
+        should_print_group: bool,
+        file: &mut W,
+    ) -> std::io::Result<()> {
+        let additional_info = if let Some(clipped_by) = self.clippings.get(layer) {
+            let id = get_unique_id();
+            writeln!(file, r#"<clipPath id="{}">"#, id)?;
+            self.export_layer(clipped_by, false, file)?;
+            writeln!(file, "</clipPath>")?;
+            format!(r#"clip-path="url(#{})""#, id)
+        } else {
+            "".into()
+        };
+
+if should_print_group {
+        writeln!(file, "<g {}>", additional_info)?;
+}
+        if let Some(layer) = self.layers.get(layer) {
+            file.write_all(&layer)?;
+        }
+if should_print_group {
+        writeln!(file, "</g>")?;
+}
+        Ok(())
+    }
+
     pub fn export_to_file(&self, file: &str, layer_order: &[T]) -> std::io::Result<()> {
         let file = std::fs::File::create(file)?;
         let mut file = std::io::BufWriter::new(file);
@@ -76,12 +110,18 @@ impl<T: Hash + Eq> Svg<T> {
         writeln!(file, "</style>")?;
 
         for layer in layer_order {
-            if let Some(layer) = self.layers.get(layer) {
-                file.write_all(&layer)?;
-            }
+            self.export_layer(layer, true, &mut file)?;
         }
 
         writeln!(file, "</svg>")?;
         Ok(())
     }
+}
+
+use std::sync::atomic::{AtomicU32, Ordering};
+static mut ID: AtomicU32 = AtomicU32::new(0);
+
+fn get_unique_id() -> String {
+    let id = unsafe { ID.fetch_add(1, Ordering::Relaxed) };
+    return format!("a_{}", id);
 }
