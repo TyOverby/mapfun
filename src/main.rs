@@ -141,7 +141,7 @@ fn main() -> std::io::Result<()> {
     svg.set_style(
         Layer::ParkBuilding,
         "park-building",
-        "fill:#cbeacf; stroke:#cbeacf; stroke-width:1px",
+        "fill:#accbb0; stroke:#cbeacf; stroke-width:1px",
     );
 
     svg.set_style(
