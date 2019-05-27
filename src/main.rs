@@ -17,12 +17,13 @@ enum Kind {
     Park(RangeIdx),
 }
 
-#[derive(Hash, Eq, PartialEq)]
+#[derive(Copy, Clone, Hash, Eq, PartialEq)]
 enum Layer {
     Building,
     Road,
     Coastline,
     Park,
+    ParkBuilding,
 }
 
 impl Kind {
@@ -59,7 +60,7 @@ fn main() -> std::io::Result<()> {
     let mut svg = Svg::new(bounds);
 
     svg.set_background_color("#000020");
-    svg.set_clippings_layer(Layer::Building, Layer::Park);
+    svg.set_clippings_layer(Layer::ParkBuilding, Layer::Park);
     svg.set_style(
         Layer::Road,
         "road",
@@ -73,6 +74,12 @@ fn main() -> std::io::Result<()> {
     );
 
     svg.set_style(
+        Layer::ParkBuilding,
+        "park-building",
+        "fill:#617d61; stroke:#617d61; stroke-width:1px",
+    );
+
+    svg.set_style(
         Layer::Coastline,
         "coastline",
         "fill:none; stroke:black; stroke-width:0.1%",
@@ -83,9 +90,18 @@ fn main() -> std::io::Result<()> {
         let layer = kind.to_layer();
         let range = kind.range_idx();
         svg.draw_polyline(layer, geometry.resolve_coords(range))?;
+        if let Layer::Building = layer {
+            svg.draw_polyline(Layer::ParkBuilding, geometry.resolve_coords(range))?;
+        }
     }
 
-    let layer_order = &[Layer::Park, Layer::Road, Layer::Building, Layer::Coastline];
+    let layer_order = &[
+        Layer::Park,
+        Layer::Road,
+        Layer::Building,
+        Layer::ParkBuilding,
+        Layer::Coastline,
+    ];
     svg.export_to_file("./nyc.svg", layer_order)?;
     flame::dump_html(std::fs::File::create("./flame.html")?)?;
 

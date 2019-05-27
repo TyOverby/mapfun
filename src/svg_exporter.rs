@@ -52,7 +52,13 @@ impl<T: Hash + Eq> Svg<T> {
                 .transform_lat_lon_to_screen_coordinate((*lon, *lat));
             let movement = if first { "M" } else { "L" };
             first = false;
-            write!(layer, "{}{},{} ", movement, lon, self.bounds.height - lat)?;
+            write!(
+                layer,
+                "{}{:.2},{:.2} ",
+                movement,
+                lon,
+                self.bounds.height - lat
+            )?;
         }
         if complete {
             write!(layer, "z")?;
@@ -77,15 +83,15 @@ impl<T: Hash + Eq> Svg<T> {
             "".into()
         };
 
-if should_print_group {
-        writeln!(file, "<g {}>", additional_info)?;
-}
+        if should_print_group {
+            writeln!(file, "<g {}>", additional_info)?;
+        }
         if let Some(layer) = self.layers.get(layer) {
             file.write_all(&layer)?;
         }
-if should_print_group {
-        writeln!(file, "</g>")?;
-}
+        if should_print_group {
+            writeln!(file, "</g>")?;
+        }
         Ok(())
     }
 
