@@ -7,6 +7,7 @@ authors = ["Ty Overby <ty@pre-alpha.com>"]
 osm-xml = "*"
 flame = "*"
 flamer = "*"
+aabb-quadtree = "*"
 
 [dependencies.proj5]
 version = "*"

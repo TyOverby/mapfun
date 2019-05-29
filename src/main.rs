@@ -1,6 +1,9 @@
+// extern crate aabb_quadtree;
+
 extern crate flame;
 extern crate osm_xml;
 extern crate proj5;
+
 
 #[macro_use]
 extern crate flamer;
@@ -160,11 +163,11 @@ fn main() -> std::io::Result<()> {
     for kind in &results {
         let layer = kind.to_layer();
         let coords = kind.resolve_coords(&geometry);
-        svg.draw_polyline(layer, coords)?;
+        svg.draw_polyline(layer, coords);
 
         match layer {
-            Layer::Building => svg.draw_polyline(Layer::ParkBuilding, coords)?,
-            Layer::Road => svg.draw_polyline(Layer::ParkPath, coords)?,
+            Layer::Building => svg.draw_polyline(Layer::ParkBuilding, coords),
+            Layer::Road => svg.draw_polyline(Layer::ParkPath, coords),
             _ => (),
         }
     }

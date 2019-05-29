@@ -3,9 +3,14 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use std::io::Write;
 
+enum Element {
+    LineSegment { points: Vec<(f64, f64)> },
+    Polygon { points: Vec<(f64, f64)> },
+}
+
 pub struct Svg<T: Hash + Eq> {
     bounds: Bounds,
-    layers: HashMap<T, Vec<u8>>,
+    layers: HashMap<T, Vec<Element>>,
     styles: HashMap<T, (String, String)>,
     clippings: HashMap<T, T>,
     background_color: Option<String>,
@@ -34,36 +39,66 @@ impl<T: Hash + Eq> Svg<T> {
         self.clippings.insert(layer, clipped_by);
     }
 
-    pub fn draw_polyline(&mut self, layer: T, polyline: &[(f64, f64)]) -> std::io::Result<()> {
-        if polyline.len() == 0 {
-            return Ok(());
-        };
-        let complete = polyline[0] == polyline[polyline.len() - 1];
-        let style_class = self.styles.get(&layer);
+    pub fn draw_polyline(&mut self, layer: T, polyline: &[(f64, f64)]) {
+        let len = polyline.len();
+        if len == 0 || len == 1 {
+            return;
+        }
+
+        let transformed = polyline
+            .iter()
+            .map(|(lon, lat)| {
+                self.bounds
+                    .transform_lat_lon_to_screen_coordinate((*lon, *lat))
+            })
+            .collect();
         let layer = self.layers.entry(layer).or_insert_with(|| vec![]);
-        match style_class {
-            Some((class, _)) => write!(layer, r#"<path class="{}" d=""#, class)?,
-            None => write!(layer, r#"<path d=""#)?,
+        if polyline[0] == polyline[len - 1] {
+            layer.push(Element::Polygon {
+                points: transformed,
+            })
+        } else {
+            layer.push(Element::LineSegment {
+                points: transformed,
+            })
         }
-        let mut first = true;
-        for (lon, lat) in polyline {
-            let (lon, lat) = self
-                .bounds
-                .transform_lat_lon_to_screen_coordinate((*lon, *lat));
-            let movement = if first { "M" } else { "L" };
-            first = false;
-            write!(
-                layer,
-                "{}{:.2},{:.2} ",
-                movement,
-                lon,
-                self.bounds.height - lat
-            )?;
+    }
+    fn draw_element<W: Write>(
+        &self,
+        style_class: Option<String>,
+        out: &mut W,
+        element: &Element,
+    ) -> std::io::Result<()> {
+        match element {
+            Element::LineSegment { points } | Element::Polygon { points } if points.is_empty() => {
+                return Ok(())
+            }
+            _ => (),
         }
-        if complete {
-            write!(layer, "z")?;
+
+        let draw_polyline = |polyline: &[(f64, f64)]| -> std::io::Result<()> {
+            match style_class {
+                Some(class) => write!(out, r#"<path class="{}" d=""#, class)?,
+                None => write!(out, r#"<path d=""#)?,
+            }
+            let mut first = true;
+            for (x, y) in polyline {
+                let movement = if first { "M" } else { "L" };
+                first = false;
+                write!(out, "{}{:.2},{:.2} ", movement, x, self.bounds.height - y)?;
+            }
+            Ok(())
+        };
+
+        match element {
+            Element::LineSegment { points } => draw_polyline(points)?,
+            Element::Polygon { points } => {
+                draw_polyline(points)?;
+                write!(out, "z")?;
+            }
         }
-        writeln!(layer, r#"" />"#)?;
+
+        writeln!(out, r#"" />"#)?;
         Ok(())
     }
 
@@ -87,14 +122,22 @@ impl<T: Hash + Eq> Svg<T> {
         if should_print_group {
             writeln!(file, "<g {}>", additional_info)?;
         }
-        if let Some(layer) = self.layers.get(layer) {
-            file.write_all(&layer)?;
+        if let Some(elements) = self.layers.get(layer) {
+            for element in elements {
+                let style = self.styles.get(layer).cloned().map(|(a, _)| a);
+                self.draw_element(style, file, element)?;
+            }
         }
         if should_print_group {
             writeln!(file, "</g>")?;
         }
         Ok(())
     }
+
+    /*fn draw_clipped_elements(draw: &[Element], clip: &[Element]) -> std::io::Result<()> {
+        //let aabb = aabb_quadtree::QuadTree::default(unimplemented!(), clip.len());
+        unimplemented!();
+    }*/
 
     #[flame]
     pub fn export_to_file(&self, file: &str, layer_order: &[T]) -> std::io::Result<()> {
