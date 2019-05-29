@@ -137,7 +137,7 @@ where
 
         }
         None
-}
+    }
 }
 fn collect_ways<T>(
     relationship_tags: Option<&[Tag]>,

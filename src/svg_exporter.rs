@@ -109,13 +109,21 @@ impl<T: Hash + Eq> Svg<T> {
 
         writeln!(file, "<style>")?;
         if let Some(background_color) = &self.background_color {
-            writeln!(file, "svg {{background-color: {}}}", background_color)?;
+            writeln!(file, ".background {{fill: {}}}", background_color)?;
         }
 
         for (_, (classname, style)) in self.styles.iter() {
             writeln!(file, ".{} {{{}}}", classname, style)?;
         }
         writeln!(file, "</style>")?;
+
+        if self.background_color.is_some() {
+            writeln!(
+                file,
+                r#"<rect class="background" x="0" y="0" width="{}" height="{}" />"#,
+                self.bounds.width, self.bounds.height
+            )?;
+        }
 
         for layer in layer_order {
             self.export_layer(layer, true, &mut file)?;
