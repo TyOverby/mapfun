@@ -20,9 +20,11 @@ fn inline_map<A: Sized, B: Sized, F: Fn(A) -> B>(mut input: Vec<A>, f: F) -> Vec
         swap(&mut swap_into, item);
 
         let mut out: B = f(swap_into);
-        let out_ref: &mut B = &mut out;
-        let out_transmuted: &mut A = unsafe { transmute(out_ref) };
-        swap(out_transmuted, item);
+        {
+            let out_ref: &mut B = &mut out;
+            let out_transmuted: &mut A = unsafe { transmute(out_ref) };
+            swap(out_transmuted, item);
+        }
         forget(out);
     }
     let result: Vec<B> = unsafe { transmute(input) };
