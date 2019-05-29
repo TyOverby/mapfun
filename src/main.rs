@@ -1,3 +1,5 @@
+use std::env;
+
 extern crate flame;
 extern crate osm_xml;
 extern crate proj5;
@@ -67,7 +69,6 @@ fn filter(relationship_tags: &[Tag], way_tags: &[Tag], range: RangeIdx) -> Optio
 
 #[flame]
 fn process_coastline_and_parks(results: Vec<Kind>, geometry: &Geometry) -> Vec<Kind> {
-
     let mut coastlines: Vec<Vec<_>> = vec![];
     let mut disconnected_parks: Vec<Vec<_>> = vec![];
     let mut acc = vec![];
@@ -116,46 +117,50 @@ fn process_coastline_and_parks(results: Vec<Kind>, geometry: &Geometry) -> Vec<K
 
 #[flame]
 fn main() -> std::io::Result<()> {
-    let (geometry, results) = Geometry::from_file("./nyc.osm", &filter, 1000.0);
+    let args: Vec<String> = env::args().collect();
+    println!("{:?}", args);
+    let filename = &args[1].to_string();
+    let osm_file = format!("./{}.osm", filename.as_str());
+    let (geometry, results) = Geometry::from_file(&osm_file, &filter, 1000.0);
     let bounds = geometry.bounds;
     let results = process_coastline_and_parks(results, &geometry);
 
     let mut svg = Svg::new(bounds);
 
-    svg.set_background_color("#000020");
+    svg.set_background_color("#1f2345");
     svg.set_clippings_layer(Layer::ParkBuilding, Layer::Park);
     svg.set_clippings_layer(Layer::ParkPath, Layer::Park);
 
     svg.set_style(
         Layer::Road,
         "road",
-        "fill:none; stroke:darkgrey; stroke-width:0.07%; stroke-linecap:round",
+        "fill:none; stroke:#8b8ca9; stroke-width:0.07%; stroke-linecap:round",
     );
 
     svg.set_style(
         Layer::Building,
         "building",
-        "fill:lightgrey; stroke:lightgrey; stroke-width:1px",
+        "fill:#dc9433; stroke:#000; stroke-width:0.01px",
     );
 
     svg.set_style(
         Layer::ParkBuilding,
         "park-building",
-        "fill:#accbb0; stroke:#cbeacf; stroke-width:1px",
+        "fill:#ff0000; stroke:#f44336; stroke-width:0.1px",
     );
 
     svg.set_style(
         Layer::ParkPath,
         "park-path",
-        "fill:none; stroke:#C5DBC5; stroke-width:1px",
+        "fill:none; stroke:#e841f4; stroke-width:0.01px",
     );
 
     svg.set_style(
         Layer::Coastline,
         "coastline",
-        "fill:grey; stroke:white; stroke-width:1px",
+        "fill:#eee; stroke:white; stroke-width:1px",
     );
-    svg.set_style(Layer::Park, "park", "fill: #adbfad; stroke:none;");
+    svg.set_style(Layer::Park, "park", "fill:#42f442; stroke:none;");
 
     for kind in &results {
         let layer = kind.to_layer();
@@ -177,7 +182,8 @@ fn main() -> std::io::Result<()> {
         Layer::ParkBuilding,
         Layer::ParkPath,
     ];
-    svg.export_to_file("./nyc.svg", layer_order)?;
+
+    svg.export_to_file(&format!("./{}.svg", filename), layer_order)?;
     flame::dump_html(std::fs::File::create("./flame.html")?)?;
 
     Ok(())
