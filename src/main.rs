@@ -10,6 +10,7 @@ mod linemath;
 
 mod osm_load;
 mod svg_exporter;
+mod theme;
 
 use osm_load::*;
 use svg_exporter::*;
@@ -25,7 +26,7 @@ enum Kind {
 }
 
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
-enum Layer {
+pub enum Layer {
     Building,
     Road,
     Coastline,
@@ -63,6 +64,9 @@ fn filter(relationship_tags: &[Tag], way_tags: &[Tag], range: RangeIdx) -> Optio
         ("building", _) => Some(Kind::Building as T),
         (_, "coastline") => Some(Kind::Coastline as T),
         (_, "park") => Some(Kind::Park as T),
+        (_, "garden") => Some(Kind::Park as T),
+        (_, "grass") => Some(Kind::Park as T),
+        (_, "memorial") => Some(Kind::Park as T),
         _ => None,
     })(relationship_tags, way_tags, range)
 }
@@ -127,40 +131,10 @@ fn main() -> std::io::Result<()> {
 
     let mut svg = Svg::new(bounds);
 
-    svg.set_background_color("#1f2345");
     svg.set_clippings_layer(Layer::ParkBuilding, Layer::Park);
     svg.set_clippings_layer(Layer::ParkPath, Layer::Park);
 
-    svg.set_style(
-        Layer::Road,
-        "road",
-        "fill:none; stroke:#8b8ca9; stroke-width:0.07%; stroke-linecap:round",
-    );
-
-    svg.set_style(
-        Layer::Building,
-        "building",
-        "fill:#dc9433; stroke:#000; stroke-width:0.01px",
-    );
-
-    svg.set_style(
-        Layer::ParkBuilding,
-        "park-building",
-        "fill:#ff0000; stroke:#f44336; stroke-width:0.1px",
-    );
-
-    svg.set_style(
-        Layer::ParkPath,
-        "park-path",
-        "fill:none; stroke:#e841f4; stroke-width:0.01px",
-    );
-
-    svg.set_style(
-        Layer::Coastline,
-        "coastline",
-        "fill:#eee; stroke:white; stroke-width:1px",
-    );
-    svg.set_style(Layer::Park, "park", "fill:#42f442; stroke:none;");
+    theme::gray_theme(&mut svg);
 
     for kind in &results {
         let layer = kind.to_layer();
