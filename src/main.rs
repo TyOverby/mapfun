@@ -1,5 +1,3 @@
-use std::env;
-
 extern crate flame;
 extern crate osm_xml;
 extern crate proj5;
@@ -16,8 +14,8 @@ mod svg_exporter;
 mod theme;
 
 use osm_load::*;
+use std::env;
 use svg_exporter::*;
-
 #[derive(Clone)]
 enum Kind {
     Building(RangeIdx),
@@ -128,7 +126,6 @@ fn main() -> std::io::Result<()> {
     println!("{:?}", args);
 
     let _subways = geojson::from_file("./data/geojson/subway_lines.pretty.geojson");
-
     let filename = &args[1].to_string();
     let osm_file = format!("./data/osm/{}.osm", filename.as_str());
     let (geometry, results) = Geometry::from_file(&osm_file, &filter, 1000.0);
@@ -145,11 +142,11 @@ fn main() -> std::io::Result<()> {
     for kind in &results {
         let layer = kind.to_layer();
         let coords = kind.resolve_coords(&geometry);
-        svg.draw_polyline(layer, coords)?;
+        svg.draw_polyline(layer, coords);
 
         match layer {
-            Layer::Building => svg.draw_polyline(Layer::ParkBuilding, coords)?,
-            Layer::Road => svg.draw_polyline(Layer::ParkPath, coords)?,
+            Layer::Building => svg.draw_polyline(Layer::ParkBuilding, coords),
+            Layer::Road => svg.draw_polyline(Layer::ParkPath, coords),
             _ => (),
         }
     }
