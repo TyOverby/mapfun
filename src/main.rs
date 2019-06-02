@@ -24,6 +24,7 @@ enum Kind {
     Park(RangeIdx),
     ProcessedCoastline(Vec<(f64, f64)>),
     ProcessedPark(Vec<(f64, f64)>),
+    Subway(Vec<(f64, f64)>),
 }
 
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
@@ -34,6 +35,7 @@ pub enum Layer {
     Park,
     ParkPath,
     ParkBuilding,
+    Subway,
 }
 
 impl Kind {
@@ -45,6 +47,7 @@ impl Kind {
             Kind::ProcessedCoastline(_) => Layer::Coastline,
             Kind::Park(_) => Layer::Park,
             Kind::ProcessedPark(_) => Layer::Park,
+            Kind::Subway(_) => Layer::Subway,
         }
     }
     fn resolve_coords<'a>(&'a self, geom: &'a Geometry) -> &'a [(f64, f64)] {
@@ -54,6 +57,7 @@ impl Kind {
             }
             Kind::ProcessedCoastline(v) => &v[..],
             Kind::ProcessedPark(v) => &v[..],
+            Kind::Subway(v) => &v[..],
         }
     }
 }
@@ -121,16 +125,43 @@ fn process_coastline_and_parks(results: Vec<Kind>, geometry: &Geometry) -> Vec<K
 }
 
 #[flame]
+fn process_subways(
+    results: Vec<Kind>,
+    _geometry: &Geometry,
+    subways: geojson::Geojson,
+) -> Vec<Kind> {
+    let mut acc = results.clone();
+
+    for feature in subways.features {
+        match feature.geometry {
+            geojson::Geometry::LineString { coordinates } => {
+                let as_tuple = coordinates
+                    .iter()
+                    .map(|coordinate| (coordinate[0], coordinate[1]))
+                    .collect();
+                let converted = osm_load::coord_convert(as_tuple);
+                acc.push(Kind::Subway(converted))
+            }
+            _ => (),
+        }
+    }
+
+    acc
+}
+
+#[flame]
 fn main() -> std::io::Result<()> {
     let args: Vec<String> = env::args().collect();
     println!("{:?}", args);
 
-    let _subways = geojson::from_file("./data/geojson/subway_lines.pretty.geojson");
     let filename = &args[1].to_string();
     let osm_file = format!("./data/osm/{}.osm", filename.as_str());
     let (geometry, results) = Geometry::from_file(&osm_file, &filter, 1000.0);
     let bounds = geometry.bounds;
     let results = process_coastline_and_parks(results, &geometry);
+
+    let subways = geojson::from_file("./data/geojson/subway_lines.pretty.geojson").unwrap();
+    let results = process_subways(results, &geometry, subways);
 
     let mut svg = Svg::new(bounds);
 
@@ -147,6 +178,7 @@ fn main() -> std::io::Result<()> {
         match layer {
             Layer::Building => svg.draw_polyline(Layer::ParkBuilding, coords),
             Layer::Road => svg.draw_polyline(Layer::ParkPath, coords),
+            // Layer::Subway => svg.draw_polyline(Layer::ParkPath, coords),
             _ => (),
         }
     }
@@ -158,6 +190,7 @@ fn main() -> std::io::Result<()> {
         Layer::Building,
         Layer::ParkBuilding,
         Layer::ParkPath,
+        Layer::Subway,
     ];
 
     svg.export_to_file(&format!("./data/svg/{}.svg", filename), layer_order)?;

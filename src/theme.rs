@@ -33,6 +33,13 @@ pub fn puke_theme(svg: &mut Svg<Layer>) {
         "coastline",
         "fill:#eee; stroke:white; stroke-width:1px",
     );
+
+    svg.set_style(
+        Layer::Subway,
+        "road",
+        "fill:none; stroke:#ff0000; stroke-width:0.07%; stroke-linecap:round",
+    );
+
     svg.set_style(Layer::Park, "park", "fill:#42f442; stroke:none;");
 }
 
@@ -57,6 +64,12 @@ pub fn gray_theme(svg: &mut Svg<Layer>) {
         Layer::ParkPath,
         "park-path",
         "fill:none; stroke:#777; stroke-width:0.01px",
+    );
+
+    svg.set_style(
+        Layer::Subway,
+        "subway",
+        "fill:none; stroke:#ff0000; stroke-width:0.3%; stroke-linecap:round",
     );
 
     svg.set_style(Layer::Coastline, "coastline", "fill:#777; stroke:none;");

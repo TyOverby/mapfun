@@ -34,14 +34,14 @@ pub enum Geometry {
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub struct Feature {
-    geometry: Geometry,
-    properties: Value,
+    pub geometry: Geometry,
+    pub properties: Value,
 }
 
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub struct Geojson {
-    features: Vec<Feature>,
+    pub features: Vec<Feature>,
 }
 
 pub fn from_file(path: &str) -> Result<Geojson> {

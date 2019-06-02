@@ -76,7 +76,7 @@ impl<T: Hash + Eq> Svg<T> {
             _ => (),
         }
 
-        let draw_polyline = |polyline: &[(f64, f64)]| -> std::io::Result<()> {
+        let draw_polyline = |polyline: &[(f64, f64)], out: &mut W| -> std::io::Result<()> {
             match style_class {
                 Some(class) => write!(out, r#"<path class="{}" d=""#, class)?,
                 None => write!(out, r#"<path d=""#)?,
@@ -91,9 +91,9 @@ impl<T: Hash + Eq> Svg<T> {
         };
 
         match element {
-            Element::LineSegment { points } => draw_polyline(points)?,
+            Element::LineSegment { points } => draw_polyline(points, out)?,
             Element::Polygon { points } => {
-                draw_polyline(points)?;
+                draw_polyline(points, out)?;
                 write!(out, "z")?;
             }
         }

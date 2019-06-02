@@ -134,7 +134,6 @@ where
                     return computed.map(|f| f(range));
                 }
             }
-
         }
         None
     }
@@ -166,7 +165,7 @@ fn collect_ways<T>(
 }
 
 #[flame]
-fn coord_convert(input: Vec<(f64, f64)>) -> Vec<(f64, f64)> {
+pub fn coord_convert(input: Vec<(f64, f64)>) -> Vec<(f64, f64)> {
     let ellipsoid = WGS_1984_ELLIPSOID;
     //let system = UTMSystem { utm_zone: 10 };
     let system = MercatorSystem;
