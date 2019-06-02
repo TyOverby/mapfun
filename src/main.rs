@@ -3,11 +3,14 @@ use std::env;
 extern crate flame;
 extern crate osm_xml;
 extern crate proj5;
+extern crate serde;
+extern crate serde_json;
 
 #[macro_use]
 extern crate flamer;
 mod linemath;
 
+mod geojson;
 mod osm_load;
 mod svg_exporter;
 mod theme;
@@ -123,8 +126,11 @@ fn process_coastline_and_parks(results: Vec<Kind>, geometry: &Geometry) -> Vec<K
 fn main() -> std::io::Result<()> {
     let args: Vec<String> = env::args().collect();
     println!("{:?}", args);
+
+    let _subways = geojson::from_file("./data/geojson/subway_lines.pretty.geojson");
+
     let filename = &args[1].to_string();
-    let osm_file = format!("./{}.osm", filename.as_str());
+    let osm_file = format!("./data/osm/{}.osm", filename.as_str());
     let (geometry, results) = Geometry::from_file(&osm_file, &filter, 1000.0);
     let bounds = geometry.bounds;
     let results = process_coastline_and_parks(results, &geometry);
@@ -157,7 +163,7 @@ fn main() -> std::io::Result<()> {
         Layer::ParkPath,
     ];
 
-    svg.export_to_file(&format!("./{}.svg", filename), layer_order)?;
+    svg.export_to_file(&format!("./data/svg/{}.svg", filename), layer_order)?;
     flame::dump_html(std::fs::File::create("./flame.html")?)?;
 
     Ok(())

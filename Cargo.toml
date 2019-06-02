@@ -7,6 +7,8 @@ authors = ["Ty Overby <ty@pre-alpha.com>"]
 osm-xml = "*"
 flame = "*"
 flamer = "*"
+serde = { version = "*", features = ["derive"]}
+serde_json = "*"
 
 [dependencies.proj5]
 version = "*"
